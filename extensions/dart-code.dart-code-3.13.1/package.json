@@ -2,10 +2,10 @@
 	"name": "dart-code",
 	"displayName": "Dart",
 	"description": "Dart language support and debugger for Visual Studio Code.",
-	"version": "3.12.2",
+	"version": "3.13.1",
 	"publisher": "Dart-Code",
 	"engines": {
-		"vscode": "^1.46.0"
+		"vscode": "^1.47.0"
 	},
 	"extensionKind": [
 		"workspace"
@@ -45,7 +45,8 @@
 		"onCommand:_dart.flutter.createSampleProject",
 		"onCommand:flutter.doctor",
 		"onCommand:flutter.upgrade",
-		"onUri"
+		"onUri",
+		"onDebugDynamicConfigurations"
 	],
 	"main": "./out/dist/extension",
 	"contributes": {
@@ -158,6 +159,11 @@
 				"category": "Dart"
 			},
 			{
+				"command": "dart.restartAnalysisServer",
+				"title": "Restart Analysis Server",
+				"category": "Dart"
+			},
+			{
 				"command": "dart.runTestAtCursor",
 				"title": "Run Test At Cursor",
 				"category": "Dart"
@@ -168,6 +174,11 @@
 				"category": "Dart"
 			},
 			{
+				"command": "dart.goToTests",
+				"title": "Go to Tests",
+				"category": "Dart"
+			},
+			{
 				"command": "dart.debugTestAtCursor",
 				"title": "Debug Test At Cursor",
 				"category": "Dart"
@@ -175,12 +186,14 @@
 			{
 				"command": "dart.startDebugging",
 				"title": "Start Debugging",
-				"category": "Dart"
+				"category": "Dart",
+				"icon": "$(debug-alt-small)"
 			},
 			{
 				"command": "dart.startWithoutDebugging",
-				"title": "Start Without Debugging",
-				"category": "Dart"
+				"title": "Run Without Debugging",
+				"category": "Dart",
+				"icon": "$(play)"
 			},
 			{
 				"command": "dart.startDebuggingTest",
@@ -189,7 +202,7 @@
 			},
 			{
 				"command": "dart.startWithoutDebuggingTest",
-				"title": "Start Without Debugging",
+				"title": "Run Without Debugging",
 				"category": "Dart"
 			},
 			{
@@ -200,6 +213,11 @@
 			{
 				"command": "dart.startLogging",
 				"title": "Capture Logs",
+				"category": "Dart"
+			},
+			{
+				"command": "dart.openExtensionLog",
+				"title": "Open Extension Log",
 				"category": "Dart"
 			},
 			{
@@ -535,12 +553,20 @@
 					"when": "dart-code:dartProjectLoaded && dart-code:hasLastTestDebugConfig"
 				},
 				{
+					"command": "dart.restartAnalysisServer",
+					"when": "dart-code:dartProjectLoaded"
+				},
+				{
 					"command": "dart.runTestAtCursor",
 					"when": "dart-code:dartProjectLoaded && dart-code:cursorIsInTest"
 				},
 				{
 					"command": "dart.goToTestOrImplementationFile",
 					"when": "dart-code:dartProjectLoaded && dart-code:canGoToTestOrImplementationFile"
+				},
+				{
+					"command": "dart.goToTests",
+					"when": "false"
 				},
 				{
 					"command": "dart.debugTestAtCursor",
@@ -786,7 +812,7 @@
 				{
 					"command": "_flutter.hotReload.touchBar",
 					"when": "dart-code:anyFlutterProjectLoaded && inDebugMode && debugType == dart && dart-code:isInDebugSessionThatSupportsHotReload",
-					"group": "9_debug@4"
+					"group": "9_debug@5"
 				},
 				{
 					"command": "_dart.openDevTools.touchBar",
@@ -830,6 +856,16 @@
 					"when": "resourceFilename == pubspec.yaml && dart-code:anyFlutterProjectLoaded",
 					"command": "flutter.packages.outdated",
 					"group": "navigation@3"
+				},
+				{
+					"when": "resourceLangId == dart && dart-code:dartProjectLoaded && dart-code:currentFileIsRunnable",
+					"command": "dart.startWithoutDebugging",
+					"group": "1_run@10"
+				},
+				{
+					"when": "resourceLangId == dart && dart-code:dartProjectLoaded && dart-code:currentFileIsRunnable",
+					"command": "dart.startDebugging",
+					"group": "1_run@20"
 				}
 			],
 			"editor/context": [
@@ -902,6 +938,11 @@
 					"command": "flutter.openInXcode",
 					"when": "explorerResourceIsFolder && resourceFilename == ios && dart-code:anyFlutterProjectLoaded && dart-code:dartPlatformName == mac && dart-code:isRunningLocally",
 					"group": "1.5_open_ext@1"
+				},
+				{
+					"when": "resourceLangId == dart && resourceScheme == file && resource =~ /\\/lib\\//",
+					"command": "dart.goToTests",
+					"group": "navigation@99"
 				}
 			],
 			"view/title": [
@@ -1060,6 +1101,12 @@
 					"description": "Whether to enable the dart_style formatter included with the Dart SDK.",
 					"scope": "window"
 				},
+				"dart.enableSnippets": {
+					"type": "boolean",
+					"default": true,
+					"description": "Whether to include Dart and Flutter snippets in code completion.",
+					"scope": "window"
+				},
 				"dart.env": {
 					"type": "object",
 					"default": {},
@@ -1199,6 +1246,15 @@
 						"type": "string"
 					},
 					"scope": "machine-overridable"
+				},
+				"dart.debugExtensionBackendProtocol": {
+					"enum": [
+						"sse",
+						"ws"
+					],
+					"default": "ws",
+					"description": "The protocol to use for the Dart Debug Extension backend service. Using WebSockets can improve performance but may fail when connecting through some proxy servers.",
+					"scope": "window"
 				},
 				"dart.devToolsTheme": {
 					"enum": [
@@ -1638,7 +1694,7 @@
 				"dart.evaluateToStringInDebugViews": {
 					"type": "boolean",
 					"default": true,
-					"description": "Whether to call toString() on objects when rendering them in debug views (such as the Variables, Watch and Hovers views). Only applies to views of 15 or fewer values for performance reasons.",
+					"description": "Whether to call toString() on objects when rendering them in debug views (such as the Variables, Watch and Hovers views). Only applies to views of 100 or fewer values for performance reasons.",
 					"scope": "window"
 				},
 				"dart.previewHotReloadOnSaveWatcher": {
@@ -1954,33 +2010,33 @@
 	"dependencies": {
 		"minimatch": "^3.0.4",
 		"semver": "^7.3.2",
-		"vscode-debugadapter": "^1.40.0",
-		"vscode-debugprotocol": "^1.40.0",
+		"vscode-debugadapter": "^1.41.1",
+		"vscode-debugprotocol": "^1.41.0",
 		"vscode-languageclient": "^6.1.3",
-		"ws": "^7.2.5"
+		"ws": "^7.3.1"
 	},
 	"devDependencies": {
-		"@types/glob": "^7.1.1",
+		"@types/glob": "^7.1.3",
 		"@types/minimatch": "^3.0.3",
-		"@types/mocha": "^7.0.2",
-		"@types/node": "^12.12.37",
-		"@types/semver": "^7.1.0",
+		"@types/mocha": "^8.0.0",
+		"@types/node": "^12.12.50",
+		"@types/semver": "^7.3.1",
 		"@types/sinon": "5.0.5",
-		"@types/vscode": "^1.46.0",
-		"@types/ws": "^7.2.4",
+		"@types/vscode": "^1.47.0",
+		"@types/ws": "^7.2.6",
 		"glob": "^7.1.6",
 		"istanbul-instrumenter-loader": "^3.0.1",
-		"mocha": "^6.2.3",
-		"nyc": "^15.0.1",
+		"mocha": "^8.0.1",
+		"nyc": "^15.1.0",
 		"sinon": "^7.5.0",
 		"source-map-support": "^0.5.19",
-		"ts-loader": "^7.0.1",
-		"tslint": "^5.20.1",
-		"typescript": "^3.9.4",
-		"vscode-debugadapter-testsupport": "^1.40.3",
-		"vscode-test": "^1.3.0",
+		"ts-loader": "^8.0.1",
+		"tslint": "^6.1.2",
+		"typescript": "^3.9.6",
+		"vscode-debugadapter-testsupport": "^1.41.0",
+		"vscode-test": "^1.4.0",
 		"webpack": "^4.43.0",
-		"webpack-cli": "^3.3.11"
+		"webpack-cli": "^3.3.12"
 	},
 	"__metadata": {
 		"id": "f57f68ea-9ee8-42b5-9a97-041d3e4278c4",

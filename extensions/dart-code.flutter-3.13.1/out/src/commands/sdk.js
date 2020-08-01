@@ -9,6 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.SdkCommands = void 0;
 const vs = require("vscode");
 class SdkCommands {
     // TODO: Find an easy way to share the API signature class.

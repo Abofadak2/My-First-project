@@ -9,6 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.activate = void 0;
 const vs = require("vscode");
 const sdk_1 = require("./commands/sdk");
 const constants_1 = require("./constants");
